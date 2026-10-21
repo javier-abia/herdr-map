@@ -803,6 +803,7 @@ pub(super) mod tests {
                 pane_id: pane.into(),
                 cwd: PathBuf::from("/repo"),
                 title: None,
+                terminal_title: None,
             },
             branch: Some("b".into()),
             worktree: None,

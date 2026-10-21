@@ -310,6 +310,7 @@ mod tests {
                 pane_id: "p1".into(),
                 cwd: "/home/u/urbandocs".into(),
                 title: None,
+                terminal_title: None,
             },
             repo: Some(RepoFacts {
                 git_dir: GIT_DIR.into(),

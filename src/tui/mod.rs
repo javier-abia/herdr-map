@@ -375,6 +375,7 @@ fn selected_line(sel: Option<&Entry>) -> Line<'static> {
         let via = match e.agent.issue.as_ref().map(|l| l.source) {
             Some(LinkSource::TitleMatch) => "  (title match)",
             Some(LinkSource::PullRequest) => "  (via PR)",
+            Some(LinkSource::AgentTitle) => "  (agent title)",
             _ => "",
         };
         spans.extend([

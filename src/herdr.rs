@@ -18,6 +18,8 @@ pub struct Agent {
     pub cwd: PathBuf,
     /// Task title herdr extracted from the terminal, if any.
     pub title: Option<String>,
+    /// Pane title, which can carry an explicit issue number.
+    pub terminal_title: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -87,6 +89,10 @@ mod tests {
         let agents = parse_snapshot(include_str!("../tests/fixtures/snapshot.json")).unwrap();
         assert_eq!(agents.len(), 4);
         assert_eq!(agents[0].title.as_deref(), Some("Set env vars"));
+        assert_eq!(
+            agents[0].terminal_title.as_deref(),
+            Some("Implement #4 | repo")
+        );
         assert_eq!(
             agents[2].cwd,
             Path::new("/repo/.claude/worktrees/fix-ranking/src/search")

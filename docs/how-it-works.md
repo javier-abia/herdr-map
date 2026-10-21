@@ -6,6 +6,7 @@
 1. An issue number in the branch name: `fix-score-floor-104`, `user/42-add-thing`.
 2. A branch name that starts an open issue's title in branch form: `prototype-delegating-search-get-to-a-codex-subag` → #107.
 3. An open PR from that branch that closes an issue.
+4. One explicit `#number` in the agent's task or pane title, when it names an open issue. This also works when agents share the default branch. Titles naming multiple open issues are left unlinked.
 
 With no match, the agent is listed under "No issue".
 

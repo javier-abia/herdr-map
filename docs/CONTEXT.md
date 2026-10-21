@@ -31,7 +31,7 @@ Modules → issues → agents, plus unplaced issues, agents with no issue, and e
 An edge with a target, a source and a confidence. Sources: `branch-number`, `title-match`, `pr` (confidence 1.0) and `classifier` (the classifier's probability).
 
 **Agent → issue link**:
-From the agent's branch (never the default branch), first match wins: issue number in the branch name, then branch name as the start of an open issue's title in branch form, then an open PR from that branch closing an issue. No match means the agent has no issue; nothing guesses.
+From the agent's branch (never the default branch), first match wins: issue number in the branch name, then branch name as the start of an open issue's title in branch form, then an open PR from that branch closing an issue. If the branch gives no match, one explicit `#number` in the agent task or pane title links to an open issue, including on the default branch. Multiple different open issue numbers are ambiguous and leave the agent unlinked.
 
 **Issue → module link**:
 Decided by the classifier alone, from the issue's title and body and the module map; GitHub labels and diffs are never used. The module with the highest probability places the issue if it reaches `min_confidence`. One module per issue.

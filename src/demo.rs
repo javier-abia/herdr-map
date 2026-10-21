@@ -150,6 +150,7 @@ impl Demo {
                     pane_id: a.pane,
                     cwd: toplevel.clone(),
                     title: None,
+                    terminal_title: None,
                 },
                 repo: Some(RepoFacts {
                     git_dir: GIT_DIR.into(),

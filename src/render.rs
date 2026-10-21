@@ -67,14 +67,15 @@ fn agent_chip(a: &AgentNode, style: &Style) -> String {
         a.agent.agent,
         style.dim(&a.agent.pane_id),
     );
-    // The branch is what links an agent to an issue; the worktree folder
-    // name only stands in for it on a detached HEAD.
+    // The branch is shown when available; the worktree folder stands in for
+    // it on a detached HEAD.
     if let Some(label) = a.branch.as_ref().or(a.worktree.as_ref()) {
         let _ = write!(chip, " {}", style.paint("36", &format!("⎇ {label}")));
     }
     match a.issue.as_ref().map(|l| l.source) {
         Some(LinkSource::TitleMatch) => chip.push_str(&style.dim(" (title match)")),
         Some(LinkSource::PullRequest) => chip.push_str(&style.dim(" (via PR)")),
+        Some(LinkSource::AgentTitle) => chip.push_str(&style.dim(" (agent title)")),
         _ => {}
     }
     if let Some(title) = a.agent.title.as_deref().filter(|t| !t.is_empty()) {
@@ -265,6 +266,7 @@ mod tests {
                 pane_id: "w1:p1".into(),
                 cwd: PathBuf::from("/repo"),
                 title: None,
+                terminal_title: None,
             },
             branch: branch.map(Into::into),
             worktree: worktree.map(Into::into),

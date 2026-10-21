@@ -13,6 +13,7 @@ pub enum LinkSource {
     BranchNumber,
     TitleMatch,
     PullRequest,
+    AgentTitle,
     /// Issue → module, from the classifier; confidence is its probability.
     Classifier,
 }
@@ -68,7 +69,7 @@ pub struct Graph {
     pub modules: Vec<ModuleNode>,
     /// Issues with a live agent that are not placed in any module.
     pub unplaced_issues: Vec<IssueNode>,
-    /// Project agents whose branch gives no issue.
+    /// Project agents with no issue inferred from their branch or title.
     pub no_issue_agents: Vec<AgentNode>,
     /// Agents working in other projects.
     pub elsewhere: usize,
@@ -177,7 +178,8 @@ fn agent_node(world: &World, facts: &AgentFacts) -> AgentNode {
         issue: repo
             .filter(|r| !r.on_default_branch)
             .and_then(|r| r.branch.as_deref())
-            .and_then(|b| issue_for_branch(b, &world.issues, &world.prs)),
+            .and_then(|b| issue_for_branch(b, &world.issues, &world.prs))
+            .or_else(|| issue_for_agent_title(&facts.agent, &world.issues)),
     }
 }
 
@@ -207,7 +209,7 @@ fn in_project(world: &World, facts: &AgentFacts) -> bool {
     }
 }
 
-/// agent → issue: branch number, then title match, then the branch's PR.
+/// agent → issue from a branch: number, then issue title, then the branch's PR.
 fn issue_for_branch(branch: &str, issues: &[Issue], prs: &[PullRequest]) -> Option<Link<u64>> {
     let known = |n: u64| issues.iter().any(|i| i.number == n);
 
@@ -228,6 +230,29 @@ fn issue_for_branch(branch: &str, issues: &[Issue], prs: &[PullRequest]) -> Opti
         .flat_map(|pr| &pr.closes)
         .find(|&&n| known(n))
         .map(|&n| Link::certain(n, LinkSource::PullRequest))
+}
+
+/// A pane can identify its issue explicitly even when several agents share
+/// the default branch. Multiple distinct open issue numbers are ambiguous.
+fn issue_for_agent_title(agent: &Agent, issues: &[Issue]) -> Option<Link<u64>> {
+    let mut matches = agent
+        .title
+        .iter()
+        .chain(agent.terminal_title.iter())
+        .flat_map(|title| {
+            title.match_indices('#').filter_map(|(at, _)| {
+                let digits: String = title[at + 1..]
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .collect();
+                digits.parse::<u64>().ok()
+            })
+        })
+        .filter(|n| issues.iter().any(|issue| issue.number == *n))
+        .collect::<Vec<_>>();
+    matches.sort_unstable();
+    matches.dedup();
+    (matches.len() == 1).then(|| Link::certain(matches[0], LinkSource::AgentTitle))
 }
 
 /// Issue number from a branch name: a trailing `-104`, or a leading `104-`
@@ -299,6 +324,7 @@ mod tests {
             pane_id: pane.into(),
             cwd: cwd.into(),
             title: None,
+            terminal_title: None,
         }
     }
 
@@ -450,6 +476,46 @@ mod tests {
         ));
         assert_eq!(panes(&g.no_issue_agents), ["p1", "p2"]);
         assert!(g.unplaced_issues.is_empty());
+    }
+
+    #[test]
+    fn links_explicit_issue_numbers_from_live_titles_on_main() {
+        let mut from_pane = on_branch("p1", "/home/u/urbandocs", "main");
+        from_pane.agent.title = Some("Your organiz".into());
+        from_pane.agent.terminal_title = Some("Implement #4 | urbandocs".into());
+        let mut from_task = on_branch("p2", "/home/u/urbandocs", "main");
+        from_task.agent.title = Some("#5".into());
+        let g = build(&world(
+            vec![from_pane, from_task],
+            vec![issue(4, "Source inventory"), issue(5, "Spatial facts")],
+            vec![],
+        ));
+        assert!(g.no_issue_agents.is_empty());
+        assert_eq!(numbers(&g.unplaced_issues), [4, 5]);
+        assert_eq!(panes(&g.unplaced_issues[0].agents), ["p1"]);
+        assert_eq!(panes(&g.unplaced_issues[1].agents), ["p2"]);
+        assert_eq!(
+            g.unplaced_issues[0].agents[0]
+                .issue
+                .as_ref()
+                .unwrap()
+                .source,
+            LinkSource::AgentTitle
+        );
+    }
+
+    #[test]
+    fn ignores_closed_or_ambiguous_issue_numbers_in_agent_titles() {
+        let mut closed = on_branch("p1", "/home/u/urbandocs", "main");
+        closed.agent.terminal_title = Some("Implement #9 | urbandocs".into());
+        let mut ambiguous = on_branch("p2", "/home/u/urbandocs", "main");
+        ambiguous.agent.title = Some("Review #4 and #5".into());
+        let g = build(&world(
+            vec![closed, ambiguous],
+            vec![issue(4, "Source inventory"), issue(5, "Spatial facts")],
+            vec![],
+        ));
+        assert_eq!(panes(&g.no_issue_agents), ["p1", "p2"]);
     }
 
     #[test]
